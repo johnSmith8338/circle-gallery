@@ -1,6 +1,6 @@
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, computed, effect, ElementRef, Inject, inject, signal, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, computed, effect, ElementRef, Inject, inject, PLATFORM_ID, signal, ViewChild } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { catchError, of, tap } from 'rxjs';
 
@@ -77,10 +77,12 @@ export class AppComponent {
   }
 
   constructor(
-    @Inject(DOCUMENT) private document: Document
+    @Inject(DOCUMENT) private document: Document,
+    @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.deltaX();
-    if (typeof window !== 'undefined') {
+    if (isPlatformBrowser(this.platformId)) {
+      this.screenWidth.set(window.innerWidth);
       window.addEventListener('resize', () => {
         this.screenWidth.set(window.innerWidth);
       });
