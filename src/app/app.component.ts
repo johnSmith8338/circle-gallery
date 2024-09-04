@@ -341,7 +341,11 @@ export class AppComponent {
 
     // Устанавливаем ширину для всех info-block по умолчанию
     infoBlocks.forEach((block) => {
-      block.style.width = `${Math.round(infoBlockWidth)}px`;
+      if (this.screenWidth() < 1024) {
+        block.style.width = `${Math.round(sliderContainerParams.width)}px`;
+      } else {
+        block.style.width = `${Math.round(infoBlockWidth)}px`;
+      };
     });
 
     const toggleClass = (element: HTMLElement, className: string) => {
@@ -379,12 +383,21 @@ export class AppComponent {
 
       const transitionDuration = 500;
       const openedSlideWidth = sliderContainerParams.width / 2.2;
-      setSlideDimensions(`${openedSlideWidth}px`, `${sliderContainerParams.height}px`);
+      if (this.screenWidth() < 1024) {
+        setSlideDimensions(`${sliderContainerParams.width}px`, `300px`);
+      } else {
+        setSlideDimensions(`${openedSlideWidth}px`, `${sliderContainerParams.height}px`);
+      };
 
       setTimeout(() => {
         const slideParams = slideElement.getBoundingClientRect();
-        const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
-        setSlideDimensions(`${Math.round(openedSlideWidth)}px`, `${Math.round(sliderContainerParams.height)}px`, transform);
+        if (this.screenWidth() < 1024) {
+          const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+          setSlideDimensions(`${Math.round(sliderContainerParams.width)}px`, `${Math.round(sliderContainerParams.height / 2)}px`, transform);
+        } else {
+          const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+          setSlideDimensions(`${Math.round(openedSlideWidth)}px`, `${Math.round(sliderContainerParams.height)}px`, transform);
+        };
       }, transitionDuration);
     }
   }

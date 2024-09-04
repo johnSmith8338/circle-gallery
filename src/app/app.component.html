@@ -14,9 +14,9 @@
     </div>
     <div class="info-block" *ngFor="let item of slides; let i = index; trackBy: trackById"
       [style.z-index]="slides.length">
-      <button (click)="toggleOpen(i)">back</button>
+      <button class="back-btn" (click)="toggleOpen(i)">back</button>
       <h2>{{item.title}}</h2>
-      <p>{{item.text}}</p>
+      <p class="info-text">{{item.text}}</p>
     </div>
   </div>
   <button (click)="previousSlide()" class="prev">Previous</button>

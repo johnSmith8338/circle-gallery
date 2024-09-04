@@ -110,22 +110,53 @@ img {
     height: 100%;
     transform: translateX(-300%);
     transition: 1200ms;
-    background: black;
+    background: #0E0E18;
     color: white;
     opacity: 0;
     z-index: 1;
-    overflow-y: auto;
-    padding: 64px 24px;
+    padding-block: 80px;
+    padding-inline: 120px;
 
-    button {
-        position: sticky;
-        top: 0px;
+    @media screen and (max-width: 1024px) {
+        padding-inline: 32px;
+        transform: translateY(100%);
+    }
+
+    .back-btn {
         width: 100%;
+        color: inherit;
+        background: transparent;
+        outline: transparent;
+        border: transparent;
+        text-align: left;
+        padding-inline: 0;
+        cursor: pointer;
+    }
+
+    .info-text {
+        display: block;
+        height: 100%;
+        padding-bottom: 80px;
+        overflow-y: auto;
+
+        scrollbar-width: none;
+        /* Firefox 64 */
+        -ms-overflow-style: none;
+
+        /* IE 11 */
+        &::-webkit-scrollbar {
+            /** Webkit */
+            display: none;
+        }
     }
 
     &.opened {
         transform: translateX(0);
         opacity: 1;
+
+        @media screen and (max-width: 1024px) {
+            transform: translateY(300px);
+        }
     }
 }
 
