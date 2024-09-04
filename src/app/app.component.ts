@@ -1,6 +1,6 @@
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, computed, effect, ElementRef, inject, signal, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, computed, effect, ElementRef, Inject, inject, signal, ViewChild } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { catchError, of, tap } from 'rxjs';
 
@@ -30,7 +30,7 @@ export class AppComponent {
   http = inject(HttpClient);
   cdr = inject(ChangeDetectorRef);
 
-  screenWidth = signal(window.innerWidth);
+  screenWidth = signal(0);
 
   slides: Card[] = [];
 
@@ -68,7 +68,7 @@ export class AppComponent {
 
   getCards() {
     return this.http.get<CardsData>(this.cardsUrl).pipe(
-      tap(data => console.log('Полученные данные:', data)),
+      // tap(data => console.log('Полученные данные:', data)),
       catchError(error => {
         console.error('Ошибка при загрузке данных:', error);
         return of({ slides: [] });
@@ -76,11 +76,15 @@ export class AppComponent {
     );
   }
 
-  constructor() {
+  constructor(
+    @Inject(DOCUMENT) private document: Document
+  ) {
     this.deltaX();
-    window.addEventListener('resize', () => {
-      this.screenWidth.set(window.innerWidth);
-    });
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', () => {
+        this.screenWidth.set(window.innerWidth);
+      });
+    }
     effect(() => {
       const delta = Math.round(this.deltaIndex());
       this.slides.forEach((_, index) => {
@@ -215,7 +219,7 @@ export class AppComponent {
   }
 
   updateSlidePosition(noTransition = false) {
-    console.log('updateSlidePosition called');
+    // console.log('updateSlidePosition called');
     const slides = document.querySelectorAll('.slide') as NodeListOf<HTMLElement>;
     const totalSlides = this.slides.length;
     const visibleSlides = this.visibleSlidesCount() * 2 + 1;
@@ -246,8 +250,8 @@ export class AppComponent {
   }
 
   getSlideTransform(index: number, deltaX: number): string {
-    console.log('updateSlidePosition called');
-    const slides = document.querySelectorAll('.slide') as NodeListOf<HTMLElement>;
+    // console.log('getSlideTransform called');
+    const slides = this.document.querySelectorAll('.slide') as NodeListOf<HTMLElement>;
     const totalSlides = this.slides.length;
     const visibleSlides = this.visibleSlidesCount() * 2 + 1;
     const arcAngle = 12; // Угол между слайдами
@@ -262,7 +266,7 @@ export class AppComponent {
       const relativeIndex = (index - this.indexCenter() + totalSlides) % totalSlides;
       angle = arcAngle * (relativeIndex - Math.floor(totalSlides / 2)) + deltaX / 50;
     }
-    slides.forEach((slide, index) => {
+    Array.from(slides).forEach((slide, index) => {
       slide.style.transformOrigin = `center ${radius}px`
     })
 
