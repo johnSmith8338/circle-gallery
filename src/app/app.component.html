@@ -14,7 +14,9 @@
     </div>
     <div class="info-block" *ngFor="let item of slides; let i = index; trackBy: trackById"
       [style.z-index]="slides.length">
-      <button class="back-btn" (click)="toggleOpen(i)">back</button>
+      <div class="button-wrapper" [ngClass]="{'mobile':screenWidth()<1024&&opened()===true}">
+        <button class="back-btn" (click)="toggleOpen(i)">{{screenWidth()>=1024?'back':'&#x2715;'}}</button>
+      </div>
       <h2>{{item.title}}</h2>
       <p class="info-text">{{item.text}}</p>
     </div>

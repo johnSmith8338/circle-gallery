@@ -61,6 +61,7 @@ export class AppComponent {
   startX = 0;
   currentTranslate = 0;
   prevTranslate = 0;
+  opened = signal(false);
 
   trackById(index: number, item: Card) {
     return item.uniqueId;
@@ -362,6 +363,7 @@ export class AppComponent {
 
     if (slideElement.classList.contains('opened')) {
       toggleClass(slideElement, 'opened');
+      this.opened.set(false);
 
       infoBlocks.forEach((block, i) => {
         if (i === index) {
@@ -372,6 +374,8 @@ export class AppComponent {
       setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`);
     } else {
       toggleClass(slideElement, 'opened');
+      this.opened.set(true);
+      console.log(this.opened())
 
       infoBlocks.forEach((block, i) => {
         if (i === index) {
