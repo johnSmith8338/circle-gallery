@@ -96,7 +96,8 @@ export class AppComponent {
       const delta = this.deltaIndex();
       const indexCenter = this.indexCenter();
 
-      console.log('get slide transform effect');
+      // console.log('get slide transform effect');
+
       // this.slides.forEach((_, index) => {
       //   if (this.slides) {
       //     const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
@@ -201,8 +202,8 @@ export class AppComponent {
 
     // Сбрасываем deltaX и обновляем слайдер
     // this.updateSlidePosition();
-    this.updateActiveSlide();
     this.deltaX.set(0);
+    this.updateActiveSlide();
     this.cdr.markForCheck();
   }
 
@@ -217,9 +218,9 @@ export class AppComponent {
     let newIndexCenter = currentIndex + indexDelta;
 
     if (newIndexCenter < 0) {
-      newIndexCenter = this.slides.length - 1;
-    } else if (newIndexCenter >= this.slides.length) {
       newIndexCenter = 0;
+    } else if (newIndexCenter >= this.slides.length) {
+      newIndexCenter = this.slides.length - 1;
     }
 
     this.indexCenter.set(newIndexCenter);
@@ -231,7 +232,7 @@ export class AppComponent {
   }
 
   updateSlidePosition(noTransition = false) {
-    console.log('updateSlidePosition called');
+    // console.log('updateSlidePosition called');
     const deltaX = this.deltaX();
 
     const slides = this.document.querySelectorAll('.slide') as NodeListOf<HTMLElement>;
@@ -312,7 +313,6 @@ export class AppComponent {
 
   previousSlide() {
     if (this.slides.length <= this.visibleSlidesCount() * 2 + 1) {
-      console.log('slides.length <= this.visibleSlidesCount');
       if (this.indexCenter() > 0) {
         this.indexCenter.update(value => value - 1);
       }
@@ -334,24 +334,24 @@ export class AppComponent {
       slide.isActive = (index % this.originalSlidesLength) === centerIndexInOriginal;
     });
   }
-
-  getSlideState(index: number): boolean {
-    const totalSlides = this.slides.length;
-
-    // Проверяем, находится ли слайд в начале или в конце списка
-    const isAtStart = index === 0 && this.indexCenter() === totalSlides - 1;
-    const isAtEnd = index === totalSlides - 1 && this.indexCenter() === 0;
-
-    // Скрываем слайды, которые перемещаются с конца в начало и наоборот
-    const isVisible = !isAtStart && !isAtEnd;
-    return isVisible;
-  }
-
+  /*
+    getSlideState(index: number): boolean {
+      const totalSlides = this.slides.length;
+  
+      // Проверяем, находится ли слайд в начале или в конце списка
+      const isAtStart = index === 0 && this.indexCenter() === totalSlides - 1;
+      const isAtEnd = index === totalSlides - 1 && this.indexCenter() === 0;
+  
+      // Скрываем слайды, которые перемещаются с конца в начало и наоборот
+      const isVisible = !isAtStart && !isAtEnd;
+      return isVisible;
+    }
+  */
   toggleOpen(index: number, event?: MouseEvent): void {
     if (event) {
       event.preventDefault();
     }
-    console.log('slide clicked');
+    // console.log('toggle start');
     const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
     const sliderContainer = document.querySelector('.slider-container') as HTMLElement;
     const imgWrapper = document.querySelector('.img-wrapper') as HTMLElement;
@@ -385,6 +385,7 @@ export class AppComponent {
     };
 
     if (slideElement.classList.contains('opened')) {
+      // slide closed
       toggleClass(slideElement, 'opened');
       this.opened.set(false);
 
@@ -395,7 +396,9 @@ export class AppComponent {
       });
 
       setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`);
+      this.updateSlidePosition();
     } else {
+      // slide opened
       toggleClass(slideElement, 'opened');
       this.opened.set(true);
 
@@ -418,13 +421,14 @@ export class AppComponent {
       setTimeout(() => {
         const slideParams = slideElement.getBoundingClientRect();
         if (this.screenWidth() < 1024) {
-          const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+          const transform = `translate(${Math.round(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
           setSlideDimensions(`${Math.round(sliderContainerParams.width)}px`, `${Math.round(sliderContainerParams.height / 2)}px`, transform);
         } else {
-          const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+          const transform = `translate(${Math.round(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
           setSlideDimensions(`${Math.round(openedSlideWidth)}px`, `${Math.round(sliderContainerParams.height)}px`, transform);
         };
       }, transitionDuration);
     }
+    // console.log('toggle end');
   }
 }
