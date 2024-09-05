@@ -1,25 +1,33 @@
-<div class="slider-container" (mousedown)="onDragStart($event)" (mousemove)="onDrag($event)"
-  (mouseup)="onDragEnd($event)" (touchstart)="onDragStart($event)" (touchmove)="onDrag($event)"
+@if (allSlides()) {
+<div class="slider-container" (mousedown)="onDragStart($event)"
+  (mouseup)="onDragEnd($event)" (touchstart)="onDragStart($event)" (mousemove)="onDrag($event)"
   (touchend)="onDragEnd($event)" #sliderContainer>
   <div class="slides">
-    <div class="slide" *ngFor="let item of slides; let i = index; trackBy: trackById" (click)="toggleOpen(i)"
-      [attr.data-unique-id]="item.uniqueId" [ngClass]="{'active': item.isActive}">
-      <div class="img-wrapper">
-        <img [src]="item.srcUrl" alt="slide_img">
+    @for (item of allSlides(); track trackById; let i = $index) {
+      <div 
+        #slideElement
+        class="slide" (click)="toggleOpen(i)"
+        [attr.data-unique-id]="item.uniqueId" [ngClass]="{'active': item.isActive}">
+        <div class="img-wrapper">
+          <img [src]="item.srcUrl" alt="slide_img">
+        </div>
+        <p>
+          <span>{{item.title}} </span><br>
+        </p>
       </div>
-      <p>
-        <span>{{item.title}} </span><br>
-      </p>
-    </div>
-    <div class="info-block" *ngFor="let item of slides; let i = index; trackBy: trackById"
-      [style.z-index]="slides.length">
-      <div class="button-wrapper" [ngClass]="{'mobile':screenWidth()<1024&&opened()===true}">
-        <button class="back-btn" (click)="toggleOpen(i)">{{screenWidth()>=1024?'back':'&#x2715;'}}</button>
-      </div>
-      <h2>{{item.title}}</h2>
-      <p class="info-text">{{item.text}}</p>
-    </div>
+    }
+    @for (item of allSlides(); track trackById; let i = $index) {
+      <div class="info-block"
+        [style.z-index]="cnt()">
+        <div class="button-wrapper" [ngClass]="{'mobile':screenWidth()<1024&&opened()===true}">
+          <button class="back-btn" (click)="toggleOpen(i)">{{screenWidth()>=1024?'back':'&#x2715;'}}</button>
+        </div>
+        <h2>{{item.title}}</h2>
+        <p class="info-text">{{item.text}}</p>
+      </div>  
+    }
   </div>
   <button (click)="previousSlide()" class="prev">Previous</button>
   <button (click)="nextSlide()" class="next">Next</button>
 </div>
+}

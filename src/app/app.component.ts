@@ -1,6 +1,6 @@
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, computed, effect, ElementRef, Inject, inject, PLATFORM_ID, signal, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, computed, effect, ElementRef, Inject, inject, PLATFORM_ID, QueryList, signal, ViewChild, ViewChildren } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { catchError, of, tap } from 'rxjs';
 
@@ -32,8 +32,8 @@ export class AppComponent {
 
   screenWidth = signal(0);
 
-  slides: Card[] = [];
-
+// Query all divs with a specific CSS class or tag selector
+  @ViewChildren('slideElement') slides!: QueryList<ElementRef>;
   @ViewChild('sliderContainer', { static: false }) sliderContainer!: ElementRef<HTMLDivElement>;
   slideWidth = computed(() => {
     return this.screenWidth() < 1024 ? 142 : 340;
@@ -44,6 +44,7 @@ export class AppComponent {
   visibleSlidesCount = computed(() => {
     return this.screenWidth() < 1024 ? 1 : 2;
   });
+  
   deltaX = signal<number | null>(null);
   deltaIndex = computed(() => {
     const deltaX = this.deltaX();
@@ -59,9 +60,8 @@ export class AppComponent {
   });
   indexCenter = signal(0);
   originalSlidesLength = 0;
-
   currentIndex = 0;
-  isDragging = false;
+  isDragging = signal(false);
   startX = 0;
   currentTranslate = 0;
   prevTranslate = 0;
@@ -96,60 +96,64 @@ export class AppComponent {
       const delta = this.deltaIndex();
       const indexCenter = this.indexCenter();
 
-      // console.log('get slide transform effect');
-
-      // this.slides.forEach((_, index) => {
-      //   if (this.slides) {
-      //     const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
-      //     slideElement.style.transform = this.getSlideTransform(index, delta || 0, indexCenter);
-      //   }
-      // });
+      console.log('get slide transform effect');
+      
       this.updateSlidePosition();
       this.updateActiveSlide();
     });
   }
-
-  ngOnInit(): void {
-    this.getCards().subscribe((data: { slides: Card[] }) => {
-      const visibleSlides = this.visibleSlidesCount() * 2 + 1;
-
-      // Инициализируем оригинальный массив слайдов
-      const originalSlides = data.slides.map((slide, index) => ({
-        ...slide,
-        uniqueId: index
-      }));
+  originalSlides = signal<Card[]|null>(null);
+  allSlides = computed(()=> {
+    const originalSlides = this.originalSlides();
+    const visibleSlides = this.visibleSlidesCount() * 2 + 1;
+    if(originalSlides!==null) {
       this.originalSlidesLength = originalSlides.length;
-
       if (this.originalSlidesLength >= visibleSlides) {
         const clonedSlides1 = originalSlides.map((slide, index) => ({
           ...slide,
           uniqueId: index + this.originalSlidesLength,
         }));
-
         // Объединяем все слайды в один массив
         if (this.originalSlidesLength % 2) {
-          this.slides = [...clonedSlides1, ...originalSlides];
+          return [...clonedSlides1, ...originalSlides];
         }
       } else {
-        this.slides = [...originalSlides];
+        return [...originalSlides];
+      }
+    }
+    return null;
+  });
+  cnt = computed(()=>{
+    const slides = this.allSlides();
+    return slides?.length||0;
+  })
+  ngOnInit(): void {
+    this.getCards().subscribe((data: { slides: Card[] }) => {
+      if(data.slides) {
+        this.originalSlides.set(data.slides.map((slide, index) => ({
+          ...slide,
+          uniqueId: index
+        })));
+      } else {
+        console.error('No slides');
       }
 
-      this.indexCenter.set(0);
+      
 
-      // Обновляем отображение
-      // this.updateSlidePosition();
-      // this.updateActiveSlide();
+      // Инициализируем оригинальный массив слайдов
+      
       this.cdr.markForCheck();
     });
   }
 
   onDragStart(event: MouseEvent | TouchEvent) {
-    this.isDragging = true;
+    this.isDragging.set(true);
     this.startX = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
     // event.preventDefault();
   }
   onDrag(event: MouseEvent | TouchEvent) {
-    if (!this.isDragging) return;
+    console.log('dragg')
+    if (!this.isDragging()) return;
 
     const currentX = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
     const deltaX = currentX - this.startX;
@@ -158,200 +162,144 @@ export class AppComponent {
     // console.log('deltaX:', deltaX);
   }
   onDragEnd(event: MouseEvent | TouchEvent) {
-    this.isDragging = false;
-
-    // Вычисляем новый индекс центра
+    console.log('drag end')
     this.calculateIndexCenter();
+    this.isDragging.set(false);
 
-    /*
-        const observer = new MutationObserver((mutationsList) => {
-          mutationsList.forEach((mutation) => {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-              const slide = mutation.target as HTMLElement;
-              const transform = slide.style.transform;
-    
-              // Проверяем, есть ли трансформация rotate и извлекаем значение угла
-              const match = transform.match(/rotate\(([-\d.]+)deg\)/);
-              if (match) {
-                const angle = parseFloat(match[1]);
-    
-                // Условие для проверки угла и изменения прозрачности
-                if (Math.abs(angle) > 30) {
-                  slide.style.opacity = '0';
-                }
-              }
-            }
-          });
-        });
-    
-        const slides = document.querySelectorAll('.slide');
-        slides.forEach(slide => {
-          observer.observe(slide, { attributes: true });
-        });
-        // Возвращаем прозрачность после завершения перемещения
-        setTimeout(() => {
-          slides.forEach(slide => {
-            const slideElement = slide as HTMLElement;
-            slideElement.style.opacity = '1';
-          });
-    
-          // Отключаем наблюдателя после завершения перемещения
-          observer.disconnect();
-        }, 300);
-    */
-
-    // Сбрасываем deltaX и обновляем слайдер
-    // this.updateSlidePosition();
-    this.deltaX.set(0);
     this.updateActiveSlide();
-    this.cdr.markForCheck();
+    
   }
 
   calculateIndexCenter(): void {
-    const deltaX = this.deltaX();
-
-    const maxSlides = this.visibleSlidesCount() * 2 + 1;
-    const slideWidth = this.screenWidth() / maxSlides;
-    const indexDelta = deltaX === null ? 0 : Math.round(deltaX / slideWidth);
-    const currentIndex = this.indexCenter();
-
-    let newIndexCenter = currentIndex + indexDelta;
-
-    if (newIndexCenter < 0) {
-      newIndexCenter = 0;
-    } else if (newIndexCenter >= this.slides.length) {
-      newIndexCenter = this.slides.length - 1;
+    const slides = this.allSlides();
+    const dIdx = this.deltaIndex();
+    if(slides&&dIdx) {
+      let newIndexCenter = this.currentIndex + Math.round(dIdx);
+      console.log(newIndexCenter);
+      /**Формула кривая, нужно смотреть слайд с ближайшим к нулю углом и в него переносить */
+      newIndexCenter = newIndexCenter<0?0:newIndexCenter;
+      console.log(newIndexCenter);
+      this.indexCenter.set(newIndexCenter);
     }
-
-    this.indexCenter.set(newIndexCenter);
     // console.log('old index', currentIndex, 'new index', newIndexCenter, 'signal value', this.indexCenter());
+    this.deltaX.set(null);
   }
 
   resetSlidePosition() {
     console.log('reset slide position');
   }
 
-  updateSlidePosition(noTransition = false) {
-    // console.log('updateSlidePosition called');
-    const deltaX = this.deltaX();
+  updateSlidePosition() {
+    const noTransition = this.isDragging();
+    const slides = this.allSlides();
+    if(slides) {
+      console.log('updateSlidePosition called');
+      const deltaX = this.deltaX();
+      const totalSlides = slides.length;
+      const visibleSlides = this.visibleSlidesCount() * 2 + 1;
+      // const maxDeltaX = 600;
+      // this.deltaX.set(Math.min(Math.max((deltaX || 0), -maxDeltaX), maxDeltaX));
+      const arcAngle = 12;
+      const distance = this.screenWidth() < 1024 ? 1000 : 2600;
+      slides.forEach((slide, index) => {
+        let angle: number;
 
-    const slides = this.document.querySelectorAll('.slide') as NodeListOf<HTMLElement>;
-    const totalSlides = this.slides.length;
-    const visibleSlides = this.visibleSlidesCount() * 2 + 1;
-
-    // const maxDeltaX = 600;
-    // this.deltaX.set(Math.min(Math.max((deltaX || 0), -maxDeltaX), maxDeltaX));
-
-    const arcAngle = 12;
-    const distance = this.screenWidth() < 1024 ? 1000 : 2600;
-
-    Array.from(slides).forEach((slide, index) => {
-      let angle: number;
-
-      if (totalSlides <= visibleSlides) {
-        // console.log('>>>>>');
-        angle = arcAngle * (index - this.indexCenter()) + (deltaX || 0) / 50;
-        // console.log('indexCenter', this.indexCenter());
-        // console.log('totalSlides', totalSlides);
-        // console.log('deltaX', this.deltaX());
-        // console.log(`Slide ${index}: angle = ${angle}`);
-      } else {
-        const relativeIndex = (index - this.indexCenter() + totalSlides) % totalSlides;
-        angle = arcAngle * (relativeIndex - Math.floor(totalSlides / 2)) + (deltaX || 0) / 50;
-        // console.log(`Slide ${index}: relativeIndex = ${relativeIndex}, angle = ${angle}`);
-      }
-
-      slide.style.transformOrigin = `center ${distance}px`;
-      slide.style.transform = `rotate(${angle}deg)`;
-      slide.style.transition = noTransition ? 'none' : '500ms ease';
-    });
-  }
-
-  // getSlideTransform(index: number, deltaX: number, indexCenter: number): string {
-  //   console.log('getSlideTransform called');
-  //   const slides = this.document.querySelectorAll('.slide') as NodeListOf<HTMLElement>;
-  //   const totalSlides = this.slides.length;
-  //   const visibleSlides = this.visibleSlidesCount() * 2 + 1;
-  //   const arcAngle = 12; // Угол между слайдами
-  //   const radius = this.screenWidth() < 1024 ? 1000 : 2600; // Радиус вращения
-
-  //   let angle: number;
-  //   if (totalSlides <= visibleSlides) {
-  //     // Рассчитываем угол для малых количеств слайдов
-  //     angle = arcAngle * index + deltaX / 50;
-  //   } else {
-  //     // Стандартный режим для большего количества слайдов
-  //     const relativeIndex = (index - indexCenter + totalSlides) % totalSlides;
-  //     angle = arcAngle * (relativeIndex - Math.floor(totalSlides / 2)) + deltaX / 50;
-  //   }
-  //   Array.from(slides).forEach((slide, index) => {
-  //     slide.style.transformOrigin = `center ${radius}px`
-  //   })
-
-  //   return `rotate(${angle}deg)`;
-  // }
-
-  nextSlide() {
-    let newCurrentIndex: null | number = null;
-    const currentIndex = this.indexCenter();
-
-    if (this.slides.length <= this.visibleSlidesCount() * 2 + 1) {
-      if (currentIndex < this.slides.length - 1) {
-        // this.indexCenter.update(value => value + 1);
-        newCurrentIndex = currentIndex + 1;
-      }
-    } else {
-      // this.indexCenter.update(value => (value + 1) % this.slides.length);
-      newCurrentIndex = (currentIndex + 1) % this.slides.length;
+        if (totalSlides <= visibleSlides) {
+          angle = arcAngle * (index - this.indexCenter()) + (deltaX || 0) / 50;
+        } else {
+          const relativeIndex = (index - this.indexCenter() + totalSlides) % totalSlides;
+          angle = arcAngle * (relativeIndex - Math.floor(totalSlides / 2)) + (deltaX || 0) / 50;
+        }
+        this.setDivStyleByIndex(index,'transform-origin',`center ${distance}px`);
+        this.setDivStyleByIndex(index,'transform', `rotate(${angle}deg)`);
+        this.setDivStyleByIndex(index,'transition',noTransition ? 'none' : '500ms ease');
+      });
     }
+  }
+  // Function to access a div by index and manipulate its style
+  setDivStyleByIndex(index: number, styleName: string, styleValue: string) {
+    const divArray = this.slides.toArray();
+    if (index >= 0 && index < divArray.length) {
+      const divElement = divArray[index].nativeElement as HTMLElement;
+  
+      // Type-casting divElement.style as 'any' to allow dynamic property access
+      (divElement.style as any)[styleName] = styleValue;
+    } else {
+      console.error('Index out of bounds');
+    }
+  }
+  
+  nextSlide() {
+    const slides = this.allSlides();
+    if(slides) {
+      let newCurrentIndex: null | number = null;
+      const currentIndex = this.indexCenter();
 
-    if (newCurrentIndex !== null) {
-      this.indexCenter.set(newCurrentIndex);
-      // console.log('setting new indexCenter value', this.indexCenter())
+      if (slides.length <= this.visibleSlidesCount() * 2 + 1) {
+        if (currentIndex < slides.length - 1) {
+          // this.indexCenter.update(value => value + 1);
+          newCurrentIndex = currentIndex + 1;
+        }
+      } else {
+        // this.indexCenter.update(value => (value + 1) % this.slides.length);
+        newCurrentIndex = (currentIndex + 1) % slides.length;
+      }
+
+      if (newCurrentIndex !== null) {
+        this.indexCenter.set(newCurrentIndex);
+        // console.log('setting new indexCenter value', this.indexCenter())
+      }
     }
   }
 
   previousSlide() {
-    if (this.slides.length <= this.visibleSlidesCount() * 2 + 1) {
-      if (this.indexCenter() > 0) {
-        this.indexCenter.update(value => value - 1);
+    const slides = this.allSlides();
+    if(slides) {
+      if (slides.length <= this.visibleSlidesCount() * 2 + 1) {
+        console.log('slides.length <= this.visibleSlidesCount');
+        if (this.indexCenter() > 0) {
+          this.indexCenter.update(value => value - 1);
+        }
+      } else {
+        this.indexCenter.update(value => (value - 1 + slides.length) % slides.length);
       }
-    } else {
-      this.indexCenter.update(value => (value - 1 + this.slides.length) % this.slides.length);
     }
-    // console.log('indexCenter', this.indexCenter());
-    // this.updateSlidePosition();
-    // this.updateActiveSlide();
   }
 
   updateActiveSlide() {
+    const slides = this.allSlides();
+    if(slides) {
+      // Учитываем только оригинальные слайды для центра
+      const centerIndexInOriginal = this.indexCenter() % this.originalSlidesLength;
 
-    // Учитываем только оригинальные слайды для центра
-    const centerIndexInOriginal = this.indexCenter() % this.originalSlidesLength;
-
-    this.slides.forEach((slide, index) => {
-      // Устанавливаем класс .active только для слайда, соответствующего centerIndexInOriginal
-      slide.isActive = (index % this.originalSlidesLength) === centerIndexInOriginal;
-    });
+      slides.forEach((slide, index) => {
+        // Устанавливаем класс .active только для слайда, соответствующего centerIndexInOriginal
+        slide.isActive = (index % this.originalSlidesLength) === centerIndexInOriginal;
+      });
+    }
   }
-  /*
-    getSlideState(index: number): boolean {
-      const totalSlides = this.slides.length;
-  
+
+  getSlideState(index: number): boolean {
+    const slides = this.allSlides();
+    if(slides) {
+      const totalSlides = slides.length;
+
       // Проверяем, находится ли слайд в начале или в конце списка
       const isAtStart = index === 0 && this.indexCenter() === totalSlides - 1;
       const isAtEnd = index === totalSlides - 1 && this.indexCenter() === 0;
-  
+
       // Скрываем слайды, которые перемещаются с конца в начало и наоборот
       const isVisible = !isAtStart && !isAtEnd;
       return isVisible;
     }
-  */
+    return false;
+  }
+
   toggleOpen(index: number, event?: MouseEvent): void {
     if (event) {
       event.preventDefault();
     }
-    // console.log('toggle start');
+    console.log('slide clicked');
     const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
     const sliderContainer = document.querySelector('.slider-container') as HTMLElement;
     const imgWrapper = document.querySelector('.img-wrapper') as HTMLElement;
@@ -385,7 +333,6 @@ export class AppComponent {
     };
 
     if (slideElement.classList.contains('opened')) {
-      // slide closed
       toggleClass(slideElement, 'opened');
       this.opened.set(false);
 
@@ -396,9 +343,7 @@ export class AppComponent {
       });
 
       setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`);
-      this.updateSlidePosition();
     } else {
-      // slide opened
       toggleClass(slideElement, 'opened');
       this.opened.set(true);
 
@@ -421,14 +366,13 @@ export class AppComponent {
       setTimeout(() => {
         const slideParams = slideElement.getBoundingClientRect();
         if (this.screenWidth() < 1024) {
-          const transform = `translate(${Math.round(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+          const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
           setSlideDimensions(`${Math.round(sliderContainerParams.width)}px`, `${Math.round(sliderContainerParams.height / 2)}px`, transform);
         } else {
-          const transform = `translate(${Math.round(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+          const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
           setSlideDimensions(`${Math.round(openedSlideWidth)}px`, `${Math.round(sliderContainerParams.height)}px`, transform);
         };
       }, transitionDuration);
     }
-    // console.log('toggle end');
   }
 }
