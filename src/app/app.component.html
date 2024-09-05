@@ -2,9 +2,8 @@
   (mouseup)="onDragEnd($event)" (touchstart)="onDragStart($event)" (touchmove)="onDrag($event)"
   (touchend)="onDragEnd($event)" #sliderContainer>
   <div class="slides">
-    <div class="slide" *ngFor="let item of slides; let i = index; trackBy: trackById"
-      [style.transform]="getSlideTransform(i,deltaX())" (click)="toggleOpen(i)" [attr.data-unique-id]="item.uniqueId"
-      [ngClass]="{'active': item.isActive}">
+    <div class="slide" *ngFor="let item of slides; let i = index; trackBy: trackById" (click)="toggleOpen(i)"
+      [attr.data-unique-id]="item.uniqueId" [ngClass]="{'active': item.isActive}">
       <div class="img-wrapper">
         <img [src]="item.srcUrl" alt="slide_img">
       </div>
