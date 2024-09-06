@@ -63,7 +63,14 @@ export class AppComponent {
   originalSlidesLength = 0;
   currentIndex = 0;
   isDragging = signal(false);
-  startX = 0;
+  start = {
+    x: 0,
+    y: 0
+  }
+  current = {
+    x: 0,
+    y: 0
+  }
   currentTranslate = 0;
   prevTranslate = 0;
   opened = signal(false);
@@ -103,7 +110,7 @@ export class AppComponent {
       this.updateActiveSlide();
     }, { allowSignalWrites: true });
     effect(() => {
-      console.log(this.closestToCurrentAngleIndex());
+      // console.log(this.closestToCurrentAngleIndex());
     });
   }
   originalSlides = signal<Card[] | null>(null);
@@ -150,21 +157,40 @@ export class AppComponent {
 
   onDragStart(event: MouseEvent | TouchEvent) {
     this.isDragging.set(true);
-    this.startX = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
-    // event.preventDefault();
+    this.start.x = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
+    this.start.y = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
+    // console.log('start ', this.start.x, this.start.y);
   }
+
   onDrag(event: MouseEvent | TouchEvent) {
     // console.log('dragg')
     if (!this.isDragging()) return;
 
-    const currentX = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
-    const deltaX = currentX - this.startX;
+    this.current.x = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
+    this.current.y = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
+    const deltaX = this.current.x - this.start.x;
     this.deltaX.set(deltaX);
 
     // console.log('deltaX:', deltaX);
   }
+  blockEvent = signal(false);
   onDragEnd(event: MouseEvent | TouchEvent) {
-    console.log('drag end')
+    // console.log('drag end')
+
+    /* 1. взять координаты окончания клика из clientX и clientY */
+    /* 2. сравнить координаты начала и окончания клика */
+    const deltaX = this.current.x - this.start.x;
+    const deltaY = this.current.y - this.start.y;
+
+    /* 3. если они отличаются - блокируем клик */
+    if (deltaX > 0 || deltaY > 0) {
+      //блокируем клик
+      this.blockEvent.set(true);
+    } else {
+      /* 4. если одинаковые - срабатывает метод toggleOpen */
+      //открываем блок с информацией
+      this.blockEvent.set(false);
+    }
 
     this.indexCenter.set(this.closestToCurrentAngleIndex());
     this.deltaX.set(0);
@@ -207,13 +233,13 @@ export class AppComponent {
           const relativeIndex = (index - indexCenter + totalSlides) % totalSlides;
           angle = arcAngle * (relativeIndex - Math.floor(totalSlides / 2)) + (deltaX || 0) / 50;
         }
-        console.log(angle);
+        // console.log(angle);
         this.setDivStyleByIndex(index, 'transform-origin', `center ${distance}px`);
         this.setDivStyleByIndex(index, 'transform', `rotate(${angle}deg)`);
         this.setDivStyleByIndex(index, 'transition', noTransition ? 'none' : '500ms ease');
 
         if (Math.abs(angle) < arcAngle) {
-          console.log('я присвоил новый идекс');
+          // console.log('я присвоил новый идекс');
           newCenterIndex = index;// + (deltaX >= 0 ? 1 : -1);
           // if (newCenterIndex < 0) newCenterIndex === 0;
         }
@@ -221,6 +247,7 @@ export class AppComponent {
       this.closestToCurrentAngleIndex.set(newCenterIndex);
     }
   }
+
   // Function to access a div by index and manipulate its style
   setDivStyleByIndex(index: number, styleName: string, styleValue: string) {
     const divArray = this.slides.toArray();
@@ -261,7 +288,7 @@ export class AppComponent {
     const slides = this.allSlides();
     if (slides) {
       if (slides.length <= this.visibleSlidesCount() * 2 + 1) {
-        console.log('slides.length <= this.visibleSlidesCount');
+        // console.log('slides.length <= this.visibleSlidesCount');
         if (this.indexCenter() > 0) {
           this.indexCenter.update(value => value - 1);
         }
@@ -301,83 +328,82 @@ export class AppComponent {
   }
 
   toggleOpen(index: number, event?: MouseEvent): void {
-    if (event) {
-      event.preventDefault();
-    }
-    console.log('slide clicked');
-    const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
-    const sliderContainer = document.querySelector('.slider-container') as HTMLElement;
-    const imgWrapper = document.querySelector('.img-wrapper') as HTMLElement;
-    const infoBlocks = document.querySelectorAll('.info-block') as NodeListOf<HTMLElement>;
+    if (this.blockEvent() === false) {
+      // console.log('toggle info');
+      const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
+      const sliderContainer = document.querySelector('.slider-container') as HTMLElement;
+      const imgWrapper = document.querySelector('.img-wrapper') as HTMLElement;
+      const infoBlocks = document.querySelectorAll('.info-block') as NodeListOf<HTMLElement>;
 
-    if (!slideElement || !sliderContainer || !imgWrapper) return;
+      if (!slideElement || !sliderContainer || !imgWrapper) return;
 
-    // Рассчитываем ширину info-block по умолчанию
-    const sliderContainerParams = sliderContainer.getBoundingClientRect();
-    const infoBlockWidth = sliderContainerParams.width - (sliderContainerParams.width / 2.2);
+      // Рассчитываем ширину info-block по умолчанию
+      const sliderContainerParams = sliderContainer.getBoundingClientRect();
+      const infoBlockWidth = sliderContainerParams.width - (sliderContainerParams.width / 2.2);
 
-    // Устанавливаем ширину для всех info-block по умолчанию
-    infoBlocks.forEach((block) => {
-      if (this.screenWidth() < 1024) {
-        block.style.width = `${Math.round(sliderContainerParams.width)}px`;
-      } else {
-        block.style.width = `${Math.round(infoBlockWidth)}px`;
-      };
-    });
-
-    const toggleClass = (element: HTMLElement, className: string) => {
-      element.classList.toggle(className);
-    };
-
-    const setSlideDimensions = (width: string, height: string, transform?: string) => {
-      slideElement.style.setProperty('width', width);
-      slideElement.style.setProperty('height', height);
-      if (transform) {
-        slideElement.style.setProperty('transform', transform);
-      }
-    };
-
-    if (slideElement.classList.contains('opened')) {
-      toggleClass(slideElement, 'opened');
-      this.opened.set(false);
-
-      infoBlocks.forEach((block, i) => {
-        if (i === index) {
-          block.classList.remove('opened');
-        }
-      });
-
-      setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`);
-    } else {
-      toggleClass(slideElement, 'opened');
-      this.opened.set(true);
-
-      infoBlocks.forEach((block, i) => {
-        if (i === index) {
-          block.classList.add('opened');
-        }
-      });
-
-      setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`, 'translate(0px,0px)');
-
-      const transitionDuration = 500;
-      const openedSlideWidth = sliderContainerParams.width / 2.2;
-      if (this.screenWidth() < 1024) {
-        setSlideDimensions(`${sliderContainerParams.width}px`, `300px`);
-      } else {
-        setSlideDimensions(`${openedSlideWidth}px`, `${sliderContainerParams.height}px`);
-      };
-
-      setTimeout(() => {
-        const slideParams = slideElement.getBoundingClientRect();
+      // Устанавливаем ширину для всех info-block по умолчанию
+      infoBlocks.forEach((block) => {
         if (this.screenWidth() < 1024) {
-          const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
-          setSlideDimensions(`${Math.round(sliderContainerParams.width)}px`, `${Math.round(sliderContainerParams.height / 2)}px`, transform);
+          block.style.width = `${Math.round(sliderContainerParams.width)}px`;
         } else {
-          const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
-          setSlideDimensions(`${Math.round(openedSlideWidth)}px`, `${Math.round(sliderContainerParams.height)}px`, transform);
+          block.style.width = `${Math.round(infoBlockWidth)}px`;
         };
-      }, transitionDuration);
+      });
+
+      const toggleClass = (element: HTMLElement, className: string) => {
+        element.classList.toggle(className);
+      };
+
+      const setSlideDimensions = (width: string, height: string, transform?: string) => {
+        slideElement.style.setProperty('width', width);
+        slideElement.style.setProperty('height', height);
+        if (transform) {
+          slideElement.style.setProperty('transform', transform);
+        }
+      };
+
+      if (slideElement.classList.contains('opened')) {
+        toggleClass(slideElement, 'opened');
+        this.opened.set(false);
+
+        infoBlocks.forEach((block, i) => {
+          if (i === index) {
+            block.classList.remove('opened');
+          }
+        });
+
+        setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`);
+      } else {
+        toggleClass(slideElement, 'opened');
+        this.opened.set(true);
+
+        infoBlocks.forEach((block, i) => {
+          if (i === index) {
+            block.classList.add('opened');
+          }
+        });
+
+        setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`, 'translate(0px,0px)');
+
+        const transitionDuration = 500;
+        const openedSlideWidth = sliderContainerParams.width / 2.2;
+        if (this.screenWidth() < 1024) {
+          setSlideDimensions(`${sliderContainerParams.width}px`, `300px`);
+        } else {
+          setSlideDimensions(`${openedSlideWidth}px`, `${sliderContainerParams.height}px`);
+        };
+
+        setTimeout(() => {
+          const slideParams = slideElement.getBoundingClientRect();
+          if (this.screenWidth() < 1024) {
+            const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+            setSlideDimensions(`${Math.round(sliderContainerParams.width)}px`, `${Math.round(sliderContainerParams.height / 2)}px`, transform);
+          } else {
+            const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+            setSlideDimensions(`${Math.round(openedSlideWidth)}px`, `${Math.round(sliderContainerParams.height)}px`, transform);
+          };
+        }, transitionDuration);
+      }
     }
   }
 }
