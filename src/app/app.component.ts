@@ -32,7 +32,7 @@ export class AppComponent {
 
   screenWidth = signal(0);
 
-// Query all divs with a specific CSS class or tag selector
+  // Query all divs with a specific CSS class or tag selector
   @ViewChildren('slideElement') slides!: QueryList<ElementRef>;
   @ViewChild('sliderContainer', { static: false }) sliderContainer!: ElementRef<HTMLDivElement>;
   slideWidth = computed(() => {
@@ -41,10 +41,11 @@ export class AppComponent {
   slideHeight = computed(() => {
     return this.slideWidth() === 340 ? 540 : 226;
   });
-  visibleSlidesCount = computed(() => {
-    return this.screenWidth() < 1024 ? 1 : 2;
-  });
-  
+  // visibleSlidesCount = computed(() => {
+  //   return this.screenWidth() < 1024 ? 1 : 2;
+  // });
+  visibleSlidesCount = signal(2);
+
   deltaX = signal<number | null>(null);
   deltaIndex = computed(() => {
     const deltaX = this.deltaX();
@@ -96,40 +97,44 @@ export class AppComponent {
       const delta = this.deltaIndex();
       const indexCenter = this.indexCenter();
 
-      console.log('get slide transform effect');
-      
+      // console.log('get slide transform effect');
+
       this.updateSlidePosition();
       this.updateActiveSlide();
+    }, { allowSignalWrites: true });
+    effect(() => {
+      console.log(this.closestToCurrentAngleIndex());
     });
   }
-  originalSlides = signal<Card[]|null>(null);
-  allSlides = computed(()=> {
+  originalSlides = signal<Card[] | null>(null);
+  allSlides = computed(() => {
     const originalSlides = this.originalSlides();
+    // console.log('originalSlides ', originalSlides);
+    if (!originalSlides) return null;
     const visibleSlides = this.visibleSlidesCount() * 2 + 1;
-    if(originalSlides!==null) {
+    if (originalSlides !== null) {
       this.originalSlidesLength = originalSlides.length;
       if (this.originalSlidesLength >= visibleSlides) {
         const clonedSlides1 = originalSlides.map((slide, index) => ({
           ...slide,
           uniqueId: index + this.originalSlidesLength,
         }));
-        // Объединяем все слайды в один массив
-        if (this.originalSlidesLength % 2) {
-          return [...clonedSlides1, ...originalSlides];
-        }
+        return [...clonedSlides1, ...originalSlides];
       } else {
         return [...originalSlides];
       }
     }
     return null;
   });
-  cnt = computed(()=>{
+  cnt = computed(() => {
+    // console.log('allSlides ', this.allSlides());
     const slides = this.allSlides();
-    return slides?.length||0;
+    // console.log('slides ', slides);
+    return slides?.length || 0;
   })
   ngOnInit(): void {
     this.getCards().subscribe((data: { slides: Card[] }) => {
-      if(data.slides) {
+      if (data.slides) {
         this.originalSlides.set(data.slides.map((slide, index) => ({
           ...slide,
           uniqueId: index
@@ -137,11 +142,8 @@ export class AppComponent {
       } else {
         console.error('No slides');
       }
-
-      
-
       // Инициализируем оригинальный массив слайдов
-      
+
       this.cdr.markForCheck();
     });
   }
@@ -152,7 +154,7 @@ export class AppComponent {
     // event.preventDefault();
   }
   onDrag(event: MouseEvent | TouchEvent) {
-    console.log('dragg')
+    // console.log('dragg')
     if (!this.isDragging()) return;
 
     const currentX = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
@@ -163,38 +165,33 @@ export class AppComponent {
   }
   onDragEnd(event: MouseEvent | TouchEvent) {
     console.log('drag end')
-    this.calculateIndexCenter();
+
+    this.indexCenter.set(this.closestToCurrentAngleIndex());
+    this.deltaX.set(0);
     this.isDragging.set(false);
 
     this.updateActiveSlide();
-    
-  }
 
-  calculateIndexCenter(): void {
-    const slides = this.allSlides();
-    const dIdx = this.deltaIndex();
-    if(slides&&dIdx) {
-      let newIndexCenter = this.currentIndex + Math.round(dIdx);
-      console.log(newIndexCenter);
-      /**Формула кривая, нужно смотреть слайд с ближайшим к нулю углом и в него переносить */
-      newIndexCenter = newIndexCenter<0?0:newIndexCenter;
-      console.log(newIndexCenter);
-      this.indexCenter.set(newIndexCenter);
-    }
-    // console.log('old index', currentIndex, 'new index', newIndexCenter, 'signal value', this.indexCenter());
-    this.deltaX.set(null);
   }
 
   resetSlidePosition() {
     console.log('reset slide position');
   }
 
+  /* в эту переменную я хочу записывать во время цикла перерисовки 
+    индекс ближайшего к вертикальному положению элемента,
+    а когда перерисовка закончится, я могу всегда взять это число и достать текущий индекс
+  */
+  closestToCurrentAngleIndex = signal(0);
+
   updateSlidePosition() {
     const noTransition = this.isDragging();
     const slides = this.allSlides();
-    if(slides) {
-      console.log('updateSlidePosition called');
-      const deltaX = this.deltaX();
+    const indexCenter = this.indexCenter();
+    let newCenterIndex = this.closestToCurrentAngleIndex();
+    if (slides) {
+      // console.log('updateSlidePosition called');
+      const deltaX = this.deltaX() || 0;
       const totalSlides = slides.length;
       const visibleSlides = this.visibleSlidesCount() * 2 + 1;
       // const maxDeltaX = 600;
@@ -205,15 +202,23 @@ export class AppComponent {
         let angle: number;
 
         if (totalSlides <= visibleSlides) {
-          angle = arcAngle * (index - this.indexCenter()) + (deltaX || 0) / 50;
+          angle = arcAngle * (index - indexCenter) + (deltaX || 0) / 50;
         } else {
-          const relativeIndex = (index - this.indexCenter() + totalSlides) % totalSlides;
+          const relativeIndex = (index - indexCenter + totalSlides) % totalSlides;
           angle = arcAngle * (relativeIndex - Math.floor(totalSlides / 2)) + (deltaX || 0) / 50;
         }
-        this.setDivStyleByIndex(index,'transform-origin',`center ${distance}px`);
-        this.setDivStyleByIndex(index,'transform', `rotate(${angle}deg)`);
-        this.setDivStyleByIndex(index,'transition',noTransition ? 'none' : '500ms ease');
+        console.log(angle);
+        this.setDivStyleByIndex(index, 'transform-origin', `center ${distance}px`);
+        this.setDivStyleByIndex(index, 'transform', `rotate(${angle}deg)`);
+        this.setDivStyleByIndex(index, 'transition', noTransition ? 'none' : '500ms ease');
+
+        if (Math.abs(angle) < arcAngle) {
+          console.log('я присвоил новый идекс');
+          newCenterIndex = index;// + (deltaX >= 0 ? 1 : -1);
+          // if (newCenterIndex < 0) newCenterIndex === 0;
+        }
       });
+      this.closestToCurrentAngleIndex.set(newCenterIndex);
     }
   }
   // Function to access a div by index and manipulate its style
@@ -221,17 +226,17 @@ export class AppComponent {
     const divArray = this.slides.toArray();
     if (index >= 0 && index < divArray.length) {
       const divElement = divArray[index].nativeElement as HTMLElement;
-  
+
       // Type-casting divElement.style as 'any' to allow dynamic property access
       (divElement.style as any)[styleName] = styleValue;
     } else {
       console.error('Index out of bounds');
     }
   }
-  
+
   nextSlide() {
     const slides = this.allSlides();
-    if(slides) {
+    if (slides) {
       let newCurrentIndex: null | number = null;
       const currentIndex = this.indexCenter();
 
@@ -254,7 +259,7 @@ export class AppComponent {
 
   previousSlide() {
     const slides = this.allSlides();
-    if(slides) {
+    if (slides) {
       if (slides.length <= this.visibleSlidesCount() * 2 + 1) {
         console.log('slides.length <= this.visibleSlidesCount');
         if (this.indexCenter() > 0) {
@@ -268,7 +273,7 @@ export class AppComponent {
 
   updateActiveSlide() {
     const slides = this.allSlides();
-    if(slides) {
+    if (slides) {
       // Учитываем только оригинальные слайды для центра
       const centerIndexInOriginal = this.indexCenter() % this.originalSlidesLength;
 
@@ -281,7 +286,7 @@ export class AppComponent {
 
   getSlideState(index: number): boolean {
     const slides = this.allSlides();
-    if(slides) {
+    if (slides) {
       const totalSlides = slides.length;
 
       // Проверяем, находится ли слайд в начале или в конце списка
