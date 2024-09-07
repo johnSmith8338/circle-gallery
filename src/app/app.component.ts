@@ -116,7 +116,6 @@ export class AppComponent {
   originalSlides = signal<Card[] | null>(null);
   allSlides = computed(() => {
     const originalSlides = this.originalSlides();
-    // console.log('originalSlides ', originalSlides);
     if (!originalSlides) return null;
     const visibleSlides = this.visibleSlidesCount() * 2 + 1;
     if (originalSlides !== null) {
@@ -126,7 +125,7 @@ export class AppComponent {
           ...slide,
           uniqueId: index + this.originalSlidesLength,
         }));
-        return [...clonedSlides1, ...originalSlides];
+        return [...originalSlides, ...clonedSlides1];
       } else {
         return [...originalSlides];
       }
@@ -155,7 +154,12 @@ export class AppComponent {
     });
   }
 
+  smoothDelta(delta: number, max: number): number {
+    return Math.sign(delta) * Math.min(Math.abs(delta), max);
+  }
+
   onDragStart(event: MouseEvent | TouchEvent) {
+    console.log('drag start');
     this.isDragging.set(true);
     this.start.x = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
     this.start.y = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
@@ -169,13 +173,14 @@ export class AppComponent {
     this.current.x = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
     this.current.y = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
     const deltaX = this.current.x - this.start.x;
+    // this.deltaX.set(this.smoothDelta(deltaX, 100));
     this.deltaX.set(deltaX);
 
-    // console.log('deltaX:', deltaX);
+    console.log('deltaX:', deltaX);
   }
   blockEvent = signal(false);
   onDragEnd(event: MouseEvent | TouchEvent) {
-    // console.log('drag end')
+    // console.log('drag end');
 
     /* 1. взять координаты окончания клика из clientX и clientY */
     /* 2. сравнить координаты начала и окончания клика */
@@ -183,21 +188,22 @@ export class AppComponent {
     const deltaY = this.current.y - this.start.y;
 
     /* 3. если они отличаются - блокируем клик */
-    if (deltaX > 0 || deltaY > 0) {
+    if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
       //блокируем клик
       this.blockEvent.set(true);
+      this.indexCenter.set(this.closestToCurrentAngleIndex());
     } else {
       /* 4. если одинаковые - срабатывает метод toggleOpen */
       //открываем блок с информацией
       this.blockEvent.set(false);
     }
 
-    this.indexCenter.set(this.closestToCurrentAngleIndex());
+    // this.indexCenter.set(this.closestToCurrentAngleIndex());
     this.deltaX.set(0);
     this.isDragging.set(false);
 
     this.updateActiveSlide();
-
+    console.log('Drag ended. New indexCenter:', this.indexCenter());
   }
 
   resetSlidePosition() {
@@ -209,6 +215,7 @@ export class AppComponent {
     а когда перерисовка закончится, я могу всегда взять это число и достать текущий индекс
   */
   closestToCurrentAngleIndex = signal(0);
+  angles: number[] = [];
 
   updateSlidePosition() {
     const noTransition = this.isDragging();
@@ -224,6 +231,8 @@ export class AppComponent {
       // this.deltaX.set(Math.min(Math.max((deltaX || 0), -maxDeltaX), maxDeltaX));
       const arcAngle = 12;
       const distance = this.screenWidth() < 1024 ? 1000 : 2600;
+      this.angles = [];
+
       slides.forEach((slide, index) => {
         let angle: number;
 
@@ -233,18 +242,28 @@ export class AppComponent {
           const relativeIndex = (index - indexCenter + totalSlides) % totalSlides;
           angle = arcAngle * (relativeIndex - Math.floor(totalSlides / 2)) + (deltaX || 0) / 50;
         }
+
         // console.log(angle);
         this.setDivStyleByIndex(index, 'transform-origin', `center ${distance}px`);
         this.setDivStyleByIndex(index, 'transform', `rotate(${angle}deg)`);
         this.setDivStyleByIndex(index, 'transition', noTransition ? 'none' : '500ms ease');
 
+        this.angles[index] = angle;
+        console.log(`Slide ${index}: angle = ${angle}`);
+
         if (Math.abs(angle) < arcAngle) {
           // console.log('я присвоил новый идекс');
           newCenterIndex = index;// + (deltaX >= 0 ? 1 : -1);
           // if (newCenterIndex < 0) newCenterIndex === 0;
+          console.log(`Slide ${index} is closest to center`);
         }
       });
-      this.closestToCurrentAngleIndex.set(newCenterIndex);
+      // Определяем ближайший индекс по минимальному углу
+      const closestIndex = this.angles.reduce((closest, current, index, arr) => {
+        return Math.abs(current) < Math.abs(arr[closest]) ? index : closest;
+      }, 0);
+      this.closestToCurrentAngleIndex.set(closestIndex);
+      console.log('closestToCurrentAngleIndex', this.closestToCurrentAngleIndex());
     }
   }
 
