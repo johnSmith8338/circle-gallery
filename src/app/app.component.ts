@@ -41,10 +41,10 @@ export class AppComponent {
   slideHeight = computed(() => {
     return this.slideWidth() === 340 ? 540 : 226;
   });
-  // visibleSlidesCount = computed(() => {
-  //   return this.screenWidth() < 1024 ? 1 : 2;
-  // });
-  visibleSlidesCount = signal(2);
+  visibleSlidesCount = computed(() => {
+    return this.screenWidth() < 1024 ? 1 : 2;
+  });
+  // visibleSlidesCount = signal(2);
 
   deltaX = signal<number | null>(null);
   deltaIndex = computed(() => {
@@ -159,7 +159,7 @@ export class AppComponent {
   }
 
   onDragStart(event: MouseEvent | TouchEvent) {
-    console.log('drag start');
+    // console.log('drag start');
     this.isDragging.set(true);
     this.start.x = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
     this.start.y = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
@@ -176,7 +176,7 @@ export class AppComponent {
     // this.deltaX.set(this.smoothDelta(deltaX, 100));
     this.deltaX.set(deltaX);
 
-    console.log('deltaX:', deltaX);
+    // console.log('deltaX:', deltaX);
   }
   blockEvent = signal(false);
   onDragEnd(event: MouseEvent | TouchEvent) {
@@ -203,7 +203,7 @@ export class AppComponent {
     this.isDragging.set(false);
 
     this.updateActiveSlide();
-    console.log('Drag ended. New indexCenter:', this.indexCenter());
+    // console.log('Drag ended. New indexCenter:', this.indexCenter());
   }
 
   resetSlidePosition() {
@@ -249,13 +249,13 @@ export class AppComponent {
         this.setDivStyleByIndex(index, 'transition', noTransition ? 'none' : '500ms ease');
 
         this.angles[index] = angle;
-        console.log(`Slide ${index}: angle = ${angle}`);
+        // console.log(`Slide ${index}: angle = ${angle}`);
 
         if (Math.abs(angle) < arcAngle) {
           // console.log('я присвоил новый идекс');
           newCenterIndex = index;// + (deltaX >= 0 ? 1 : -1);
           // if (newCenterIndex < 0) newCenterIndex === 0;
-          console.log(`Slide ${index} is closest to center`);
+          // console.log(`Slide ${index} is closest to center`);
         }
       });
       // Определяем ближайший индекс по минимальному углу
@@ -263,7 +263,7 @@ export class AppComponent {
         return Math.abs(current) < Math.abs(arr[closest]) ? index : closest;
       }, 0);
       this.closestToCurrentAngleIndex.set(closestIndex);
-      console.log('closestToCurrentAngleIndex', this.closestToCurrentAngleIndex());
+      // console.log('closestToCurrentAngleIndex', this.closestToCurrentAngleIndex());
     }
   }
 
