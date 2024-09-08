@@ -366,7 +366,12 @@ export class AppComponent {
   }
 
   toggleOpen(index: number, event?: MouseEvent): void {
+    if (this.slideBlocked()) {
+      return;
+    }
+
     if (this.blockEvent() === false) {
+      this.slideBlocked.set(true); // Блокируем клики, пока слайд открыт
       // console.log('toggle info');
       const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
       const sliderContainer = document.querySelector('.slider-container') as HTMLElement;
@@ -410,6 +415,7 @@ export class AppComponent {
         });
 
         setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`);
+        this.slideBlocked.set(false); // Разблокируем клики после закрытия слайда
 
       } else {
         toggleClass(slideElement, 'opened');
@@ -440,6 +446,7 @@ export class AppComponent {
             const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
             setSlideDimensions(`${Math.ceil(openedSlideWidth)}px`, `${Math.ceil(sliderContainerParams.height)}px`, transform);
           };
+          this.slideBlocked.set(false); // Разблокируем клики после завершения анимации
         }, transitionDuration);
       }
     }
