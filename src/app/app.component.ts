@@ -85,6 +85,7 @@ export class AppComponent {
   currentTranslate = 0;
   prevTranslate = 0;
   opened = signal(false);
+  slideBlocked = signal(false);
 
   trackById(index: number, item: Card) {
     return item.uniqueId;
@@ -409,6 +410,7 @@ export class AppComponent {
         });
 
         setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`);
+
       } else {
         toggleClass(slideElement, 'opened');
         this.opened.set(true);
