@@ -1,6 +1,6 @@
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, computed, effect, ElementRef, Inject, inject, PLATFORM_ID, QueryList, signal, ViewChild, ViewChildren } from '@angular/core';
+import { ChangeDetectorRef, Component, computed, effect, ElementRef, Inject, inject, PLATFORM_ID, QueryList, Renderer2, signal, ViewChild, ViewChildren } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { catchError, of, tap } from 'rxjs';
 
@@ -34,6 +34,7 @@ export class AppComponent {
 
   // Query all divs with a specific CSS class or tag selector
   @ViewChildren('slideElement') slides!: QueryList<ElementRef>;
+  @ViewChildren('infoBlock') infoBlocks!: QueryList<ElementRef>;
   @ViewChild('sliderContainer', { static: false }) sliderContainer!: ElementRef<HTMLDivElement>;
   slideWidth = computed(() => {
     return this.screenWidth() < 1024 ? 142 : 340;
@@ -45,6 +46,16 @@ export class AppComponent {
     return this.screenWidth() < 1024 ? 1 : 2;
   });
   // visibleSlidesCount = signal(2);
+  infoBlockWidth = computed(() => {
+    const sliderContainerParams = this.sliderContainer.nativeElement.getBoundingClientRect();
+    const infoBlockWidth =
+      this.screenWidth() < 1024 ?
+        sliderContainerParams.width :
+        sliderContainerParams.width - (sliderContainerParams.width / 2.2)
+      ;
+
+    return Math.ceil(infoBlockWidth);
+  })
 
   deltaX = signal<number | null>(null);
   deltaIndex = computed(() => {
@@ -101,8 +112,8 @@ export class AppComponent {
       });
     }
     effect(() => {
-      const delta = this.deltaIndex();
-      const indexCenter = this.indexCenter();
+      // const delta = this.deltaIndex();
+      // const indexCenter = this.indexCenter();
 
       // console.log('get slide transform effect');
 
@@ -110,7 +121,7 @@ export class AppComponent {
       this.updateActiveSlide();
     }, { allowSignalWrites: true });
     effect(() => {
-      // console.log(this.closestToCurrentAngleIndex());
+      console.log(this.closestToCurrentAngleIndex());
     });
   }
   originalSlides = signal<Card[] | null>(null);
@@ -164,14 +175,18 @@ export class AppComponent {
     this.start.x = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
     this.start.y = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
     // console.log('start ', this.start.x, this.start.y);
+    this.setCurrentCoords(event);
   }
 
+  setCurrentCoords(event: MouseEvent | TouchEvent) {
+    this.current.x = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
+    this.current.y = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
+  }
   onDrag(event: MouseEvent | TouchEvent) {
     // console.log('dragg')
     if (!this.isDragging()) return;
 
-    this.current.x = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
-    this.current.y = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
+    this.setCurrentCoords(event);
     const deltaX = this.current.x - this.start.x;
     // this.deltaX.set(this.smoothDelta(deltaX, 100));
     this.deltaX.set(deltaX);
@@ -181,28 +196,27 @@ export class AppComponent {
   blockEvent = signal(false);
   onDragEnd(event: MouseEvent | TouchEvent) {
     // console.log('drag end');
+    this.isDragging.set(false);
 
     /* 1. взять координаты окончания клика из clientX и clientY */
     /* 2. сравнить координаты начала и окончания клика */
     const deltaX = this.current.x - this.start.x;
     const deltaY = this.current.y - this.start.y;
 
+    console.log(this.current.x, this.start.x);
     /* 3. если они отличаются - блокируем клик */
     if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
       //блокируем клик
+      console.log('asdf', deltaX, deltaY)
       this.blockEvent.set(true);
       this.indexCenter.set(this.closestToCurrentAngleIndex());
+      this.deltaX.set(0);
+      // this.updateActiveSlide();
     } else {
       /* 4. если одинаковые - срабатывает метод toggleOpen */
       //открываем блок с информацией
       this.blockEvent.set(false);
     }
-
-    // this.indexCenter.set(this.closestToCurrentAngleIndex());
-    this.deltaX.set(0);
-    this.isDragging.set(false);
-
-    this.updateActiveSlide();
     // console.log('Drag ended. New indexCenter:', this.indexCenter());
   }
 
@@ -218,7 +232,7 @@ export class AppComponent {
   angles: number[] = [];
 
   updateSlidePosition() {
-    const noTransition = this.isDragging();
+    const noTransition = this.isDragging() && !this.opened();
     const slides = this.allSlides();
     const indexCenter = this.indexCenter();
     let newCenterIndex = this.closestToCurrentAngleIndex();
@@ -236,12 +250,15 @@ export class AppComponent {
       slides.forEach((slide, index) => {
         let angle: number;
 
-        if (totalSlides <= visibleSlides) {
-          angle = arcAngle * (index - indexCenter) + (deltaX || 0) / 50;
-        } else {
-          const relativeIndex = (index - indexCenter + totalSlides) % totalSlides;
-          angle = arcAngle * (relativeIndex - Math.floor(totalSlides / 2)) + (deltaX || 0) / 50;
-        }
+        angle = arcAngle * (index - indexCenter) + (deltaX || 0) / 50;
+
+        // if (totalSlides <= visibleSlides) {
+        //   angle = arcAngle * (index - indexCenter) + (deltaX || 0) / 50;
+        // } else {
+        //   const relativeIndex = (index - indexCenter + totalSlides) % totalSlides;
+        //   angle = arcAngle * (relativeIndex - Math.floor(totalSlides / 2)) + (deltaX || 0) / 50;
+        // }
+        console.log('angle ', angle, 'slide ', index);
 
         // console.log(angle);
         this.setDivStyleByIndex(index, 'transform-origin', `center ${distance}px`);
@@ -261,12 +278,12 @@ export class AppComponent {
       // Определяем ближайший индекс по минимальному углу
       const closestIndex = this.angles.reduce((closest, current, index, arr) => {
         return Math.abs(current) < Math.abs(arr[closest]) ? index : closest;
-      }, 0);
-      this.closestToCurrentAngleIndex.set(closestIndex);
-      // console.log('closestToCurrentAngleIndex', this.closestToCurrentAngleIndex());
+      });
+      this.closestToCurrentAngleIndex.set(newCenterIndex);
+      console.log('closestToCurrentAngleIndex', this.closestToCurrentAngleIndex());
     }
   }
-
+  renderer = inject(Renderer2);
   // Function to access a div by index and manipulate its style
   setDivStyleByIndex(index: number, styleName: string, styleValue: string) {
     const divArray = this.slides.toArray();
@@ -274,7 +291,8 @@ export class AppComponent {
       const divElement = divArray[index].nativeElement as HTMLElement;
 
       // Type-casting divElement.style as 'any' to allow dynamic property access
-      (divElement.style as any)[styleName] = styleValue;
+      this.renderer.setStyle(divElement, styleName, styleValue);
+      // (divElement.style as any)[styleName] = styleValue;
     } else {
       console.error('Index out of bounds');
     }
@@ -358,26 +376,25 @@ export class AppComponent {
 
       // Рассчитываем ширину info-block по умолчанию
       const sliderContainerParams = sliderContainer.getBoundingClientRect();
-      const infoBlockWidth = sliderContainerParams.width - (sliderContainerParams.width / 2.2);
+      const infoBlockWidth = this.infoBlockWidth();
 
       // Устанавливаем ширину для всех info-block по умолчанию
       infoBlocks.forEach((block) => {
-        if (this.screenWidth() < 1024) {
-          block.style.width = `${Math.round(sliderContainerParams.width)}px`;
-        } else {
-          block.style.width = `${Math.round(infoBlockWidth)}px`;
-        };
+        block.style.width = `${infoBlockWidth}px`;
       });
 
       const toggleClass = (element: HTMLElement, className: string) => {
         element.classList.toggle(className);
       };
 
-      const setSlideDimensions = (width: string, height: string, transform?: string) => {
+      const setSlideDimensions = (width: string, height: string, transform?: string, transition?: string) => {
         slideElement.style.setProperty('width', width);
         slideElement.style.setProperty('height', height);
         if (transform) {
           slideElement.style.setProperty('transform', transform);
+        }
+        if (transition) {
+          slideElement.style.setProperty('transition', transition);
         }
       };
 
@@ -416,10 +433,10 @@ export class AppComponent {
           const slideParams = slideElement.getBoundingClientRect();
           if (this.screenWidth() < 1024) {
             const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
-            setSlideDimensions(`${Math.round(sliderContainerParams.width)}px`, `${Math.round(sliderContainerParams.height / 2)}px`, transform);
+            setSlideDimensions(`${Math.ceil(sliderContainerParams.width)}px`, `${Math.ceil(sliderContainerParams.height / 2)}px`, transform);
           } else {
             const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
-            setSlideDimensions(`${Math.round(openedSlideWidth)}px`, `${Math.round(sliderContainerParams.height)}px`, transform);
+            setSlideDimensions(`${Math.ceil(openedSlideWidth)}px`, `${Math.ceil(sliderContainerParams.height)}px`, transform);
           };
         }, transitionDuration);
       }

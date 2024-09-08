@@ -10,12 +10,12 @@
         <img [src]="item.srcUrl" alt="slide_img" draggable="false">
       </div>
       <p>
-        <span>{{item.title}}<br>id: {{item.id}}<br>uniqueId: {{item.uniqueId}}</span><br>
+        <span>{{item.title}}<br>id: {{item.id}}<br>uniqueId: {{item.uniqueId}}<br>index: {{i}}</span><br>
       </p>
     </div>
     }
     @for (item of allSlides(); track trackById; let i = $index) {
-    <div class="info-block" [style.z-index]="cnt()">
+    <div class="info-block" [style.z-index]="cnt()" #infoBlock>
       <div class="button-wrapper" [ngClass]="{'mobile':screenWidth()<1024&&opened()===true}">
         <button class="back-btn" (click)="toggleOpen(i)">{{screenWidth()>=1024?'back':'&#x2715;'}}</button>
       </div>

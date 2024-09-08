@@ -50,7 +50,6 @@ p {
     user-select: none;
     top: 0;
     left: 0;
-    animation: 300ms fadeIn ease;
 
     @media screen and (max-width: 1024px) {
         width: var(--slide-width-mob);
@@ -233,12 +232,12 @@ p {
     right: 50px;
 }
 
-@keyframes fadeIn {
+@keyframes fadeOut {
     from {
-        opacity: 0;
+        opacity: 1;
     }
 
     to {
-        opacity: 1;
+        opacity: 0;
     }
 }
