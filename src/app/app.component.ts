@@ -51,7 +51,7 @@ export class AppComponent {
     const infoBlockWidth =
       this.screenWidth() < 1024 ?
         sliderContainerParams.width :
-        sliderContainerParams.width - (sliderContainerParams.width / 2.2)
+        sliderContainerParams.width - (sliderContainerParams.width / 2)
       ;
 
     return Math.ceil(infoBlockWidth);
@@ -85,6 +85,7 @@ export class AppComponent {
   currentTranslate = 0;
   prevTranslate = 0;
   opened = signal(false);
+  blockEvent = signal(false);
   slideBlocked = signal(false);
 
   trackById(index: number, item: Card) {
@@ -122,7 +123,8 @@ export class AppComponent {
       this.updateActiveSlide();
     }, { allowSignalWrites: true });
     effect(() => {
-      console.log(this.closestToCurrentAngleIndex());
+      // console.log(this.closestToCurrentAngleIndex());
+      console.log('opened in constructor', this.opened());
     });
   }
   originalSlides = signal<Card[] | null>(null);
@@ -164,6 +166,7 @@ export class AppComponent {
 
       this.cdr.markForCheck();
     });
+
   }
 
   smoothDelta(delta: number, max: number): number {
@@ -171,11 +174,14 @@ export class AppComponent {
   }
 
   onDragStart(event: MouseEvent | TouchEvent) {
-    // console.log('drag start');
+    console.log('opened in drag start', this.opened());
+    // if (this.opened() === true) {
+    //   return;
+    // }
+    console.log('drag start');
     this.isDragging.set(true);
     this.start.x = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
     this.start.y = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
-    // console.log('start ', this.start.x, this.start.y);
     this.setCurrentCoords(event);
   }
 
@@ -194,9 +200,13 @@ export class AppComponent {
 
     // console.log('deltaX:', deltaX);
   }
-  blockEvent = signal(false);
+
   onDragEnd(event: MouseEvent | TouchEvent) {
-    // console.log('drag end');
+    console.log('opened in drag end', this.opened());
+    // if (this.opened() === true) {
+    //   return;
+    // }
+    console.log('drag end');
     this.isDragging.set(false);
 
     /* 1. взять координаты окончания клика из clientX и clientY */
@@ -204,7 +214,6 @@ export class AppComponent {
     const deltaX = this.current.x - this.start.x;
     const deltaY = this.current.y - this.start.y;
 
-    console.log(this.current.x, this.start.x);
     /* 3. если они отличаются - блокируем клик */
     if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
       //блокируем клик
@@ -218,7 +227,6 @@ export class AppComponent {
       //открываем блок с информацией
       this.blockEvent.set(false);
     }
-    // console.log('Drag ended. New indexCenter:', this.indexCenter());
   }
 
   resetSlidePosition() {
@@ -245,6 +253,7 @@ export class AppComponent {
       // const maxDeltaX = 600;
       // this.deltaX.set(Math.min(Math.max((deltaX || 0), -maxDeltaX), maxDeltaX));
       const arcAngle = 12;
+      const maxAngle = 180;
       const distance = this.screenWidth() < 1024 ? 1000 : 2600;
       this.angles = [];
 
@@ -253,20 +262,32 @@ export class AppComponent {
 
         angle = arcAngle * (index - indexCenter) + (deltaX || 0) / 50;
 
+        /*
+        // Если угол слайда больше положительного лимита, перемещаем его на другую сторону
+        if (angle > (visibleSlides / 2) * arcAngle) {
+          angle -= totalSlides * arcAngle;
+        }
+        // Если угол слайда меньше отрицательного лимита, перемещаем его на противоположную сторону
+        else if (angle < -(visibleSlides / 2) * arcAngle) {
+          angle += totalSlides * arcAngle;
+        }
+        */
+
         // if (totalSlides <= visibleSlides) {
         //   angle = arcAngle * (index - indexCenter) + (deltaX || 0) / 50;
         // } else {
         //   const relativeIndex = (index - indexCenter + totalSlides) % totalSlides;
         //   angle = arcAngle * (relativeIndex - Math.floor(totalSlides / 2)) + (deltaX || 0) / 50;
         // }
-        console.log('angle ', angle, 'slide ', index);
 
-        // console.log(angle);
+        // console.log('angle ', angle, 'slide ', index);
+
         this.setDivStyleByIndex(index, 'transform-origin', `center ${distance}px`);
         this.setDivStyleByIndex(index, 'transform', `rotate(${angle}deg)`);
         this.setDivStyleByIndex(index, 'transition', noTransition ? 'none' : '500ms ease');
 
         this.angles[index] = angle;
+
         // console.log(`Slide ${index}: angle = ${angle}`);
 
         if (Math.abs(angle) < arcAngle) {
@@ -281,7 +302,7 @@ export class AppComponent {
         return Math.abs(current) < Math.abs(arr[closest]) ? index : closest;
       });
       this.closestToCurrentAngleIndex.set(newCenterIndex);
-      console.log('closestToCurrentAngleIndex', this.closestToCurrentAngleIndex());
+      // console.log('closestToCurrentAngleIndex', this.closestToCurrentAngleIndex());
     }
   }
   renderer = inject(Renderer2);
@@ -371,8 +392,9 @@ export class AppComponent {
     }
 
     if (this.blockEvent() === false) {
+
       this.slideBlocked.set(true); // Блокируем клики, пока слайд открыт
-      // console.log('toggle info');
+      console.log('toggle info');
       const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
       const sliderContainer = document.querySelector('.slider-container') as HTMLElement;
       const imgWrapper = document.querySelector('.img-wrapper') as HTMLElement;
@@ -382,6 +404,7 @@ export class AppComponent {
 
       // Рассчитываем ширину info-block по умолчанию
       const sliderContainerParams = sliderContainer.getBoundingClientRect();
+      console.log(sliderContainerParams)
       const infoBlockWidth = this.infoBlockWidth();
 
       // Устанавливаем ширину для всех info-block по умолчанию
@@ -407,6 +430,7 @@ export class AppComponent {
       if (slideElement.classList.contains('opened')) {
         toggleClass(slideElement, 'opened');
         this.opened.set(false);
+        console.log('opened in toggle false', this.opened());
 
         infoBlocks.forEach((block, i) => {
           if (i === index) {
@@ -420,6 +444,7 @@ export class AppComponent {
       } else {
         toggleClass(slideElement, 'opened');
         this.opened.set(true);
+        console.log('opened in toggle true', this.opened());
 
         infoBlocks.forEach((block, i) => {
           if (i === index) {
@@ -427,23 +452,20 @@ export class AppComponent {
           }
         });
 
-        setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`, 'translate(0px,0px)');
 
         const transitionDuration = 500;
-        const openedSlideWidth = sliderContainerParams.width / 2.2;
-        if (this.screenWidth() < 1024) {
-          setSlideDimensions(`${sliderContainerParams.width}px`, `300px`);
-        } else {
-          setSlideDimensions(`${openedSlideWidth}px`, `${sliderContainerParams.height}px`);
-        };
+        const openedSlideWidth = sliderContainerParams.width / 2;
+
+        setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`, 'translate(0px,0px)');
 
         setTimeout(() => {
           const slideParams = slideElement.getBoundingClientRect();
+          console.log('slideParams', slideParams)
           if (this.screenWidth() < 1024) {
-            const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+            const transform = `translate(${Math.floor(- sliderContainerParams.right + slideParams.right)}px, ${-sliderContainerParams.top}px)`;
             setSlideDimensions(`${Math.ceil(sliderContainerParams.width)}px`, `${Math.ceil(sliderContainerParams.height / 2)}px`, transform);
           } else {
-            const transform = `translate(${Math.floor(sliderContainerParams.right - slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+            const transform = `translate(${Math.floor(slideParams.width / 2)}px, ${-sliderContainerParams.top}px)`;
             setSlideDimensions(`${Math.ceil(openedSlideWidth)}px`, `${Math.ceil(sliderContainerParams.height)}px`, transform);
           };
           this.slideBlocked.set(false); // Разблокируем клики после завершения анимации
