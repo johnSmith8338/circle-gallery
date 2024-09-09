@@ -55,7 +55,7 @@ export class AppComponent {
       ;
 
     return Math.ceil(infoBlockWidth);
-  })
+  });
 
   deltaX = signal<number | null>(null);
   deltaIndex = computed(() => {
@@ -178,7 +178,8 @@ export class AppComponent {
     // if (this.opened() === true) {
     //   return;
     // }
-    console.log('drag start');
+    // console.log('drag start');
+    event.preventDefault();
     this.isDragging.set(true);
     this.start.x = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
     this.start.y = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
@@ -203,10 +204,13 @@ export class AppComponent {
 
   onDragEnd(event: MouseEvent | TouchEvent) {
     console.log('opened in drag end', this.opened());
-    // if (this.opened() === true) {
+    console.log('event.target', event.target)
+
+
+    // if (this.opened() === false) {
     //   return;
     // }
-    console.log('drag end');
+    // console.log('drag end');
     this.isDragging.set(false);
 
     /* 1. взять координаты окончания клика из clientX и clientY */
@@ -218,16 +222,66 @@ export class AppComponent {
     if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
       //блокируем клик
       console.log('asdf', deltaX, deltaY)
-      this.blockEvent.set(true);
       this.indexCenter.set(this.closestToCurrentAngleIndex());
       this.deltaX.set(0);
       // this.updateActiveSlide();
     } else {
       /* 4. если одинаковые - срабатывает метод toggleOpen */
       //открываем блок с информацией
-      this.blockEvent.set(false);
+      const clickedElement = event.target as HTMLElement;
+      const cardElement = this.getClickedCardElement(clickedElement);
+      const isCloseButton = this.isBackButtonClicked(clickedElement);
+
+      if (cardElement !== null) {
+        console.error('cardElement !== null')
+        if (isCloseButton) {
+          console.log('isCloseButton')
+          this.closeSlideInfo(cardElement);
+        } else {
+          this.openSlideInfo(cardElement);
+        }
+      } else {
+        console.error('cardElement === null');
+      }
+
+      console.log('cardElement', cardElement, isCloseButton)
     }
   }
+
+  /**
+   * Traverses the DOM to find the clicked card element by looking for the 'data-index' attribute.
+   * @param target - The HTML element that was clicked
+   * @returns The card element or null if no card was clicked
+   */
+  private getClickedCardElement(target: HTMLElement): number | null {
+    // Traverse upwards from the clicked target to find a card element with 'data-index'
+    while (target && target !== document.body) {
+      if (target && target.hasAttribute('data-index')) {
+        const index = target.getAttribute('data-index')
+        if (index) {
+          return parseInt(index); // Found the card element
+        }
+      }
+      target = target.parentElement as HTMLElement; // Continue traversing upwards
+    }
+    return null; // No card was clicked
+  }
+  /**
+   * Traverses the DOM to check if the clicked element is a button with the 'back-btn' class.
+   * @param target - The HTML element that was clicked
+   * @returns true if a button with 'back-btn' class is found, false otherwise.
+   */
+  private isBackButtonClicked(target: HTMLElement): boolean {
+    // Traverse upwards from the clicked target to find a button with the 'back-btn' class
+    while (target && target !== document.body) {
+      if (target.tagName === 'BUTTON' && target.classList.contains('back-btn')) {
+        return true; // Found the back button
+      }
+      target = target.parentElement as HTMLElement; // Continue traversing upwards
+    }
+    return false; // No back button was clicked
+  }
+
 
   resetSlidePosition() {
     console.log('reset slide position');
@@ -386,91 +440,153 @@ export class AppComponent {
     return false;
   }
 
-  toggleOpen(index: number, event?: MouseEvent): void {
-    if (this.slideBlocked()) {
-      return;
-    }
+  // toggleOpen(index: number, event?: MouseEvent): void {
 
-    if (this.blockEvent() === false) {
+  //   console.log('toggle info');
+  //   const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
+  //   const sliderContainer = document.querySelector('.slider-container') as HTMLElement;
+  //   const imgWrapper = document.querySelector('.img-wrapper') as HTMLElement;
+  //   const infoBlocks = document.querySelectorAll('.info-block') as NodeListOf<HTMLElement>;
 
-      this.slideBlocked.set(true); // Блокируем клики, пока слайд открыт
-      console.log('toggle info');
-      const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
-      const sliderContainer = document.querySelector('.slider-container') as HTMLElement;
-      const imgWrapper = document.querySelector('.img-wrapper') as HTMLElement;
-      const infoBlocks = document.querySelectorAll('.info-block') as NodeListOf<HTMLElement>;
+  //   if (!slideElement || !sliderContainer || !imgWrapper) return;
 
-      if (!slideElement || !sliderContainer || !imgWrapper) return;
+  //   // Рассчитываем ширину info-block по умолчанию
+  //   const sliderContainerParams = sliderContainer.getBoundingClientRect();
+  //   const infoBlockWidth = this.infoBlockWidth();
 
-      // Рассчитываем ширину info-block по умолчанию
-      const sliderContainerParams = sliderContainer.getBoundingClientRect();
-      console.log(sliderContainerParams)
-      const infoBlockWidth = this.infoBlockWidth();
+  //   // Устанавливаем ширину для всех info-block по умолчанию
+  //   infoBlocks.forEach((block) => {
+  //     block.style.width = `${infoBlockWidth}px`;
+  //   });
 
-      // Устанавливаем ширину для всех info-block по умолчанию
-      infoBlocks.forEach((block) => {
-        block.style.width = `${infoBlockWidth}px`;
-      });
+  //   const toggleClass = (element: HTMLElement, className: string) => {
+  //     element.classList.toggle(className);
+  //   };
 
-      const toggleClass = (element: HTMLElement, className: string) => {
-        element.classList.toggle(className);
-      };
+  //   const setSlideDimensions = (width: string, height: string, transform?: string) => {
+  //     slideElement.style.setProperty('width', width);
+  //     slideElement.style.setProperty('height', height);
+  //     if (transform) {
+  //       slideElement.style.setProperty('transform', transform);
+  //     }
+  //   };
 
-      const setSlideDimensions = (width: string, height: string, transform?: string, transition?: string) => {
-        slideElement.style.setProperty('width', width);
-        slideElement.style.setProperty('height', height);
-        if (transform) {
-          slideElement.style.setProperty('transform', transform);
-        }
-        if (transition) {
-          slideElement.style.setProperty('transition', transition);
-        }
-      };
+  //   if (slideElement.classList.contains('opened')) {
+  //     toggleClass(slideElement, 'opened');
+  //     this.opened.set(false);
+  //     console.log('opened in toggle false', this.opened());
 
-      if (slideElement.classList.contains('opened')) {
-        toggleClass(slideElement, 'opened');
-        this.opened.set(false);
-        console.log('opened in toggle false', this.opened());
+  //     infoBlocks.forEach((block, i) => {
+  //       if (i === index) {
+  //         block.classList.remove('opened');
+  //       }
+  //     });
 
-        infoBlocks.forEach((block, i) => {
-          if (i === index) {
-            block.classList.remove('opened');
-          }
-        });
+  //     setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`);
 
-        setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`);
-        this.slideBlocked.set(false); // Разблокируем клики после закрытия слайда
+  //   } else {
+  //     toggleClass(slideElement, 'opened');
+  //     this.opened.set(true);
+  //     console.log('opened in toggle true', this.opened());
 
-      } else {
-        toggleClass(slideElement, 'opened');
-        this.opened.set(true);
-        console.log('opened in toggle true', this.opened());
-
-        infoBlocks.forEach((block, i) => {
-          if (i === index) {
-            block.classList.add('opened');
-          }
-        });
+  //     infoBlocks.forEach((block, i) => {
+  //       if (i === index) {
+  //         block.classList.add('opened');
+  //       }
+  //     });
 
 
-        const transitionDuration = 500;
-        const openedSlideWidth = sliderContainerParams.width / 2;
+  //     const transitionDuration = 500;
+  //     const openedSlideWidth = sliderContainerParams.width / 2;
 
-        setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`, 'translate(0px,0px)');
+  //     setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`, 'translate(0px,0px)');
 
-        setTimeout(() => {
-          const slideParams = slideElement.getBoundingClientRect();
-          console.log('slideParams', slideParams)
-          if (this.screenWidth() < 1024) {
-            const transform = `translate(${Math.floor(- sliderContainerParams.right + slideParams.right)}px, ${-sliderContainerParams.top}px)`;
-            setSlideDimensions(`${Math.ceil(sliderContainerParams.width)}px`, `${Math.ceil(sliderContainerParams.height / 2)}px`, transform);
-          } else {
-            const transform = `translate(${Math.floor(slideParams.width / 2)}px, ${-sliderContainerParams.top}px)`;
-            setSlideDimensions(`${Math.ceil(openedSlideWidth)}px`, `${Math.ceil(sliderContainerParams.height)}px`, transform);
-          };
-          this.slideBlocked.set(false); // Разблокируем клики после завершения анимации
-        }, transitionDuration);
+  //     setTimeout(() => {
+  //       const slideParams = slideElement.getBoundingClientRect();
+  //       if (this.screenWidth() < 1024) {
+  //         const transform = `translate(${Math.floor(- sliderContainerParams.right + slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+  //         setSlideDimensions(`${Math.ceil(sliderContainerParams.width)}px`, `${Math.ceil(sliderContainerParams.height / 2)}px`, transform);
+  //       } else {
+  //         const transform = `translate(${Math.floor(slideParams.width / 2)}px, ${-sliderContainerParams.top}px)`;
+  //         setSlideDimensions(`${Math.ceil(openedSlideWidth)}px`, `${Math.ceil(sliderContainerParams.height)}px`, transform);
+  //       };
+  //     }, transitionDuration);
+  //   }
+
+  // }
+
+  openSlideInfo(index: number): void {
+    console.log('open info');
+    const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
+    const sliderContainer = document.querySelector('.slider-container') as HTMLElement;
+    const infoBlocks = document.querySelectorAll('.info-block') as NodeListOf<HTMLElement>;
+
+    if (!slideElement || !sliderContainer) return;
+
+    const sliderContainerParams = sliderContainer.getBoundingClientRect();
+    const infoBlockWidth = this.infoBlockWidth();
+
+    // Set default width for all info-block elements
+    infoBlocks.forEach((block) => {
+      block.style.width = `${infoBlockWidth}px`;
+    });
+
+    const setSlideDimensions = (width: string, height: string, transform?: string) => {
+      slideElement.style.setProperty('width', width);
+      slideElement.style.setProperty('height', height);
+      if (transform) {
+        slideElement.style.setProperty('transform', transform);
       }
-    }
+    };
+
+    slideElement.classList.add('opened');
+    this.opened.set(true);
+
+    infoBlocks.forEach((block, i) => {
+      if (i === index) {
+        block.classList.add('opened');
+      }
+    });
+
+    const transitionDuration = 500;
+    const openedSlideWidth = sliderContainerParams.width / 2;
+
+    // Initial transformation
+    setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`, 'translate(0px,0px)');
+
+    setTimeout(() => {
+      const slideParams = slideElement.getBoundingClientRect();
+      if (this.screenWidth() < 1024) {
+        const transform = `translate(${Math.floor(-sliderContainerParams.right + slideParams.right)}px, ${-sliderContainerParams.top}px)`;
+        setSlideDimensions(`${Math.ceil(sliderContainerParams.width)}px`, `${Math.ceil(sliderContainerParams.height / 2)}px`, transform);
+      } else {
+        const transform = `translate(${Math.floor(slideParams.width / 2)}px, ${-sliderContainerParams.top}px)`;
+        setSlideDimensions(`${Math.ceil(openedSlideWidth)}px`, `${Math.ceil(sliderContainerParams.height)}px`, transform);
+      }
+    }, transitionDuration);
+  }
+
+  closeSlideInfo(index: number): void {
+    console.log('close info');
+    const slideElement = document.querySelector(`.slide:nth-child(${index + 1})`) as HTMLElement;
+    const infoBlocks = document.querySelectorAll('.info-block') as NodeListOf<HTMLElement>;
+
+    if (!slideElement) return;
+
+    const setSlideDimensions = (width: string, height: string) => {
+      slideElement.style.setProperty('width', width);
+      slideElement.style.setProperty('height', height);
+    };
+
+    slideElement.classList.remove('opened');
+    this.opened.set(false);
+
+    infoBlocks.forEach((block, i) => {
+      if (i === index) {
+        block.classList.remove('opened');
+      }
+    });
+
+    setSlideDimensions(`${this.slideWidth()}px`, `${this.slideHeight()}px`);
   }
 }

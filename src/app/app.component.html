@@ -4,8 +4,7 @@
   (touchmove)="onDrag($event)" #sliderContainer>
   <div class="slides">
     @for (item of allSlides(); track trackById; let i = $index) {
-    <div #slideElement class="slide" (click)="toggleOpen(i)" [attr.data-unique-id]="item.uniqueId"
-      [ngClass]="{'active': item.isActive}">
+    <div #slideElement class="slide" [attr.data-index]="i" [ngClass]="{'active': item.isActive}">
       <div class="img-wrapper">
         <img [src]="item.srcUrl" alt="slide_img" draggable="false">
       </div>
@@ -17,10 +16,12 @@
     @for (item of allSlides(); track trackById; let i = $index) {
     <div class="info-block" [style.z-index]="cnt()" #infoBlock>
       <div class="button-wrapper" [ngClass]="{'mobile':screenWidth()<1024&&opened()===true}">
-        <button class="back-btn" (click)="toggleOpen(i)">{{screenWidth()>=1024?'back':'&#x2715;'}}</button>
+        <button class="back-btn">{{screenWidth()>=1024?'back':'&#x2715;'}}</button>
       </div>
       <h2>{{item.title}}</h2>
-      <p class="info-text">{{item.text}}</p>
+      <p class="info-text"
+        [style.width]="screenWidth()<1024?(sliderContainer.offsetWidth/2-64):(sliderContainer.offsetWidth/2-240) + 'px'">
+        {{item.text}}</p>
     </div>
     }
   </div>
