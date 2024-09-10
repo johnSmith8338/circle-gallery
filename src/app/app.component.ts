@@ -124,7 +124,7 @@ export class AppComponent {
     }, { allowSignalWrites: true });
     effect(() => {
       // console.log(this.closestToCurrentAngleIndex());
-      console.log('opened in constructor', this.opened());
+      // console.log('opened in constructor', this.opened());
     });
   }
   originalSlides = signal<Card[] | null>(null);
@@ -174,7 +174,7 @@ export class AppComponent {
   }
 
   onDragStart(event: MouseEvent | TouchEvent) {
-    console.log('opened in drag start', this.opened());
+    // console.log('opened in drag start', this.opened());
     // if (this.opened() === true) {
     //   return;
     // }
@@ -203,7 +203,7 @@ export class AppComponent {
   }
 
   onDragEnd(event: MouseEvent | TouchEvent) {
-    console.log('opened in drag end', this.opened());
+    // console.log('opened in drag end', this.opened());
     console.log('event.target', event.target)
 
 
@@ -221,7 +221,7 @@ export class AppComponent {
     /* 3. если они отличаются - блокируем клик */
     if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
       //блокируем клик
-      console.log('asdf', deltaX, deltaY)
+      console.log('dragging', deltaX, deltaY)
       this.indexCenter.set(this.closestToCurrentAngleIndex());
       this.deltaX.set(0);
       // this.updateActiveSlide();
@@ -232,16 +232,15 @@ export class AppComponent {
       const cardElement = this.getClickedCardElement(clickedElement);
       const isCloseButton = this.isBackButtonClicked(clickedElement);
 
+      // Если была нажата кнопка "back-btn" и карточка найдена
+      if (isCloseButton && cardElement !== null) {
+        this.closeSlideInfo(cardElement);
+        return; // Остановить выполнение, если нажата кнопка закрытия
+      }
+
+      // Открыть слайд только если кнопка закрытия не была нажата
       if (cardElement !== null) {
-        console.error('cardElement !== null')
-        if (isCloseButton) {
-          console.log('isCloseButton')
-          this.closeSlideInfo(cardElement);
-        } else {
-          this.openSlideInfo(cardElement);
-        }
-      } else {
-        console.error('cardElement === null');
+        this.openSlideInfo(cardElement);
       }
 
       console.log('cardElement', cardElement, isCloseButton)
@@ -259,7 +258,7 @@ export class AppComponent {
       if (target && target.hasAttribute('data-index')) {
         const index = target.getAttribute('data-index')
         if (index) {
-          return parseInt(index); // Found the card element
+          return index ? parseInt(index) : null; // Found the card element
         }
       }
       target = target.parentElement as HTMLElement; // Continue traversing upwards
@@ -275,6 +274,7 @@ export class AppComponent {
     // Traverse upwards from the clicked target to find a button with the 'back-btn' class
     while (target && target !== document.body) {
       if (target.tagName === 'BUTTON' && target.classList.contains('back-btn')) {
+        console.log('btn', target.tagName === 'BUTTON' && target.classList.contains('back-btn'))
         return true; // Found the back button
       }
       target = target.parentElement as HTMLElement; // Continue traversing upwards
@@ -529,6 +529,9 @@ export class AppComponent {
     // Set default width for all info-block elements
     infoBlocks.forEach((block) => {
       block.style.width = `${infoBlockWidth}px`;
+      if (this.screenWidth() < 1024) {
+        block.style.height = `${sliderContainerParams.height}px`
+      }
     });
 
     const setSlideDimensions = (width: string, height: string, transform?: string) => {
